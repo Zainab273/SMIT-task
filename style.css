@@ -1,0 +1,186 @@
+/* --- Variables & Setup --- */
+:root {
+    --bg-dark: #030305;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text-main: #ffffff;
+    --text-muted: #9ca3af;
+    --primary-glow: #8b5cf6;
+    --secondary-glow: #ec4899;
+    --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    --success: #10b981;
+    --danger: #ef4444;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    min-height: 100vh;
+    background-color: var(--bg-dark);
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-main);
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Background Effects */
+body::before {
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1; opacity: 0.4;
+}
+.aurora-bg { position: absolute; width: 100%; height: 100%; z-index: 0; overflow: hidden; }
+.blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; animation: floatBlob 20s infinite alternate; }
+.blob-1 { width: 50vw; height: 50vw; background: #5b21b6; top: -10%; left: -10%; }
+.blob-2 { width: 40vw; height: 40vw; background: #be185d; bottom: -10%; right: -10%; }
+@keyframes floatBlob { 0% { transform: translate(0, 0); } 100% { transform: translate(40px, -40px); } }
+
+/* --- Containers --- */
+.container { position: relative; z-index: 10; width: 90%; max-width: 1200px; margin: 0 auto; padding: 40px 0; }
+.center-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+
+/* --- Cards & Inputs --- */
+.glass-card {
+    background: var(--glass-bg); border: 1px solid var(--glass-border);
+    padding: 40px; border-radius: 24px; backdrop-filter: blur(24px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+input, select, textarea {
+    width: 100%; padding: 15px; background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    color: #fff; outline: none; transition: 0.3s; margin-bottom: 15px;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary-glow); background: rgba(0,0,0,0.5); }
+.select-dark option { background: #030305; }
+
+/* --- Buttons --- */
+.glow-button {
+    width: 100%; padding: 16px; border: none; border-radius: 14px;
+    background: var(--accent-gradient); color: #fff; font-weight: 600;
+    cursor: pointer; transition: 0.3s;
+}
+.glow-button:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(139, 92, 246, 0.4); }
+.btn-small { width: auto; padding: 10px 20px; font-size: 0.9rem; }
+.btn-del { background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 8px; border-radius: 8px; cursor: pointer; border: none; }
+
+/* --- Admin Layout --- */
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.admin-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+@media(max-width: 900px) { .admin-grid { grid-template-columns: 1fr; } }
+
+/* --- OLD Survey Elements (Kept for Admin View) --- */
+.timer-badge {
+    position: fixed; top: 20px; right: 20px; z-index: 100;
+    background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #fff; padding: 10px 20px; border-radius: 50px; font-weight: 700; font-size: 1.2rem;
+    backdrop-filter: blur(10px);
+}
+.question-block {
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+    padding: 25px; border-radius: 16px; margin-bottom: 25px;
+}
+.q-type-badge {
+    font-size: 0.7rem; text-transform: uppercase; padding: 4px 8px; 
+    border-radius: 4px; background: rgba(255,255,255,0.1); margin-left: 10px;
+}
+.option-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+
+/* Report Table */
+.table-wrapper { overflow-x: auto; }
+.report-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.report-table th { text-align: left; padding: 15px; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.1); }
+.report-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.status-pass { color: var(--success); font-weight: bold; }
+.status-fail { color: var(--danger); font-weight: bold; }
+
+/* Split Screen (Index) */
+.role-card {
+    width: 300px; height: 350px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; cursor: pointer;
+    transition: 0.4s; border: 1px solid rgba(255,255,255,0.1);
+}
+.role-card:hover { background: rgba(255,255,255,0.08); border-color: var(--primary-glow); }
+.role-icon { font-size: 4rem; margin-bottom: 20px; color: var(--primary-glow); }
+.split-container { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
+
+/* ========================================= */
+/*  NEW IMPROVED WORKER SURVEY UI           */
+/* ========================================= */
+
+/* Sticky Timer Header */
+.sticky-header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(3, 3, 5, 0.85);
+    backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 15px 0; margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.timer-box {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 90%; max-width: 800px; margin: 0 auto;
+}
+.time-left {
+    font-size: 1.5rem; font-weight: 700; font-family: monospace;
+    color: var(--primary-glow); text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+/* User Survey Question Card */
+.q-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px; padding: 30px;
+    margin-bottom: 30px; position: relative;
+    transition: transform 0.3s ease;
+}
+.q-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15); }
+
+.q-number {
+    font-size: 0.9rem; text-transform: uppercase; color: var(--text-muted);
+    letter-spacing: 1px; margin-bottom: 10px; display: block;
+}
+.q-text { font-size: 1.3rem; font-weight: 600; color: #fff; margin-bottom: 25px; line-height: 1.5; }
+
+/* Modern Option Tiles (Clickable Boxes) */
+.options-grid { display: flex; flex-direction: column; gap: 12px; }
+
+.option-label {
+    position: relative; cursor: pointer;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+}
+
+/* Hide default Radio Button */
+.option-label input[type="radio"] { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+
+/* The Visual Box */
+.option-tile {
+    display: flex; align-items: center; padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px; transition: all 0.2s ease;
+}
+
+/* Hover Effect */
+.option-label:hover .option-tile { background: rgba(255, 255, 255, 0.08); }
+
+/* Selected State */
+.option-label input:checked + .option-tile {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: var(--primary-glow);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+.option-label input:checked + .option-tile::before {
+    content: "\f12f"; /* RemixIcon checkmark */
+    font-family: "remixicon"; margin-right: 10px;
+    color: var(--primary-glow); font-size: 1.2rem;
+}
+
+/* Survey Specific Comment Box */
+.comment-box {
+    width: 100%; margin-top: 20px;
+    background: transparent; border: none; border-top: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0; padding: 15px 0;
+    color: var(--text-muted); font-size: 0.9rem; transition: 0.3s;
+}
+.comment-box:focus { border-top-color: var(--primary-glow); color: #fff; background: transparent; }

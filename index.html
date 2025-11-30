@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Covid Survey | Select Role</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="aurora-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="center-screen">
+        <h1 style="margin-bottom: 40px; font-size: 2.5rem;">Who are you?</h1>
+        
+        <div class="split-container">
+            <!-- Admin Option -->
+            <div class="glass-card role-card" onclick="location.href='login.html?role=admin'">
+                <i class="ri-admin-line role-icon"></i>
+                <h2>Admin</h2>
+                <p style="color:var(--text-muted); margin-top:10px">Create & Manage Surveys</p>
+            </div>
+
+            <!-- User Option -->
+            <div class="glass-card role-card" onclick="location.href='login.html?role=user'">
+                <i class="ri-user-smile-line role-icon"></i>
+                <h2>User / Worker</h2>
+                <p style="color:var(--text-muted); margin-top:10px">Take Survey & View Results</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

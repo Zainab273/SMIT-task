@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="aurora-bg"><div class="blob blob-1"></div></div>
+
+    <div class="container">
+        <div class="admin-header">
+            <h2>Admin Dashboard</h2>
+            <button onclick="logout()" class="btn-del">Sign Out</button>
+        </div>
+
+        <div class="admin-grid">
+            <!-- Left: Add Question Form -->
+            <div class="glass-card">
+                <h3>Add Question</h3>
+                <br>
+                <form id="addQForm">
+                    <label>Question Text</label>
+                    <input type="text" id="qText" required placeholder="Enter question...">
+
+                    <label>Type</label>
+                    <select id="qType" class="select-dark" onchange="toggleOptions()">
+                        <option value="multiple">Multiple Choice</option>
+                        <option value="single">Single (True/False)</option>
+                        <option value="data">Data (Info Only)</option>
+                    </select>
+
+                    <div id="optionsContainer">
+                        <label>Options (Comma separated)</label>
+                        <input type="text" id="qOptions" placeholder="e.g. Fever, Cough, None">
+                        
+                        <label>Correct Answer</label>
+                        <input type="text" id="qCorrect" placeholder="Exact text of correct option">
+                    </div>
+
+                    <label>Fail Response (Message if wrong)</label>
+                    <input type="text" id="qFailMsg" placeholder="e.g. Consult a doctor">
+
+                    <button type="submit" class="glow-button btn-small">Add Question</button>
+                </form>
+            </div>
+
+            <!-- Right: Reports & Question List -->
+            <div class="glass-card">
+                <div style="display:flex; gap:20px; margin-bottom:20px;">
+                    <button class="glow-button btn-small" onclick="showTab('reports')">User Reports</button>
+                    <button class="glow-button btn-small" style="background:transparent; border:1px solid white" onclick="showTab('questions')">View Questions</button>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="tab-reports">
+                    <h3>Survey Submissions</h3>
+                    <div class="table-wrapper">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>Result</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Questions List Tab -->
+                <div id="tab-questions" style="display:none;">
+                    <h3>Active Questions</h3>
+                    <div id="questionsList" style="margin-top:20px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://sadprddxjtqscsourwub.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZHByZGR4anRxc2Nzb3Vyd3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYyNTgsImV4cCI6MjA4MDAwMjI1OH0.-WHvQpXjwPTxaB_tbRDoBNcz80cWeORAnCl3QLDzuW0';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- Logic ---
+        function toggleOptions() {
+            const type = document.getElementById('qType').value;
+            const container = document.getElementById('optionsContainer');
+            if(type === 'data') container.style.display = 'none';
+            else container.style.display = 'block';
+        }
+
+        async function loadData() {
+            // Load Submissions
+            const { data: subs } = await supabase.from('submissions').select('*').order('created_at', {ascending: false});
+            const tbody = document.getElementById('reportsBody');
+            tbody.innerHTML = '';
+            if(subs) {
+                subs.forEach(sub => {
+                    const row = `<tr>
+                        <td>${sub.user_name}<br><small>${sub.user_email}</small></td>
+                        <td class="${sub.status === 'Pass' ? 'status-pass' : 'status-fail'}">${sub.status}</td>
+                        <td>${new Date(sub.created_at).toLocaleDateString()}</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            }
+
+            // Load Questions
+            const { data: qs } = await supabase.from('questions').select('*');
+            const qList = document.getElementById('questionsList');
+            qList.innerHTML = '';
+            if(qs) {
+                qs.forEach(q => {
+                    qList.innerHTML += `<div class="question-block">
+                        <strong>${q.text}</strong> <span class="q-type-badge">${q.type}</span>
+                        <br><small style="color:var(--text-muted)">Correct: ${q.correct_answer || 'N/A'}</small>
+                    </div>`;
+                });
+            }
+        }
+
+        document.getElementById('addQForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = document.getElementById('qText').value;
+            const type = document.getElementById('qType').value;
+            const failMsg = document.getElementById('qFailMsg').value;
+            let options = null;
+            let correct = null;
+
+            if(type !== 'data') {
+                if(type === 'single') options = ['True', 'False'];
+                else options = document.getElementById('qOptions').value.split(',').map(s=>s.trim());
+                correct = document.getElementById('qCorrect').value;
+            }
+
+            const { error } = await supabase.from('questions').insert({
+                text, type, options, correct_answer: correct, fail_message: failMsg
+            });
+
+            if(error) alert(error.message);
+            else {
+                alert("Question Added!");
+                e.target.reset();
+                loadData();
+            }
+        });
+
+        function showTab(tab) {
+            document.getElementById('tab-reports').style.display = tab === 'reports' ? 'block' : 'none';
+            document.getElementById('tab-questions').style.display = tab === 'questions' ? 'block' : 'none';
+        }
+
+        function logout() {
+            supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // Init
+        loadData();
+    </script>
+</body>
+</html>

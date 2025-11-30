@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Covid Survey</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="aurora-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="center-screen">
+        <div class="glass-card" style="width: 400px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 id="pageTitle">Welcome</h2>
+                <p id="pageDesc" style="color: var(--text-muted);">Please sign in</p>
+            </div>
+
+            <!-- Form -->
+            <form id="authForm">
+                <input type="text" id="inputName" placeholder="Full Name" style="display:none;">
+                <input type="email" id="inputEmail" placeholder="Email Address" required>
+                <input type="password" id="inputPassword" placeholder="Password" style="display:none;">
+                
+                <button type="submit" class="glow-button">Continue</button>
+            </form>
+            
+            <p style="text-align:center; margin-top:20px; font-size:0.9rem;">
+                <a href="index.html" style="color:var(--text-muted); text-decoration:none;">&larr; Back to Selection</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://sadprddxjtqscsourwub.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZHByZGR4anRxc2Nzb3Vyd3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYyNTgsImV4cCI6MjA4MDAwMjI1OH0.-WHvQpXjwPTxaB_tbRDoBNcz80cWeORAnCl3QLDzuW0';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Check Role from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role') || 'user';
+
+        const title = document.getElementById('pageTitle');
+        const desc = document.getElementById('pageDesc');
+        const nameInput = document.getElementById('inputName');
+        const passInput = document.getElementById('inputPassword');
+
+        if (role === 'admin') {
+            title.innerText = "Admin Login";
+            desc.innerText = "Enter credentials to manage surveys";
+            passInput.style.display = 'block';
+            passInput.required = true;
+        } else {
+            title.innerText = "Worker Start";
+            desc.innerText = "Enter details to start the survey";
+            nameInput.style.display = 'block';
+            nameInput.required = true;
+        }
+
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('inputEmail').value;
+            
+            if (role === 'admin') {
+                const password = passInput.value;
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) alert("Login Failed: " + error.message);
+                else window.location.href = 'admin.html';
+            } else {
+                // User Flow: Just save details and go to survey
+                const name = nameInput.value;
+                localStorage.setItem('surveyUser', JSON.stringify({ name, email }));
+                window.location.href = 'survey.html';
+            }
+        });
+    </script>
+</body>
+</html>
