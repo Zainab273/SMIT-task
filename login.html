@@ -11,19 +11,35 @@
     <style>
         .link-text { color: #8b5cf6; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
         
-        /* Role Badge Style */
+        /* Role Badge */
         .role-badge {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
-            font-weight: 700;
+            display: inline-block; padding: 5px 15px; border-radius: 20px;
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 15px; font-weight: 700;
         }
         .role-admin { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
         .role-worker { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        /* --- CUSTOM TOAST (Popup Alert) --- */
+        #loginToast {
+            position: fixed; top: 20px; right: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            color: white; padding: 15px 25px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: translateX(200%); transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 2000; display: flex; align-items: center; gap: 12px;
+            border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+            min-width: 300px;
+        }
+        #loginToast.show { transform: translateX(0); }
+        
+        /* Variants */
+        .toast-error { border-left: 4px solid #ef4444; }
+        .toast-success { border-left: 4px solid #10b981; }
+        
+        .toast-icon { font-size: 1.3rem; }
+        .ri-error-warning-fill { color: #ef4444; }
+        .ri-checkbox-circle-fill { color: #10b981; }
     </style>
 </head>
 <body>
@@ -32,11 +48,20 @@
         <div class="blob blob-2"></div>
     </div>
 
+    <!-- CUSTOM NOTIFICATION (Hidden initially) -->
+    <div id="loginToast">
+        <i id="toastIcon" class="toast-icon"></i>
+        <div>
+            <strong id="toastTitle" style="display:block; font-size:0.9rem;">Title</strong>
+            <span id="toastMsg" style="font-size:0.85rem; color:#ccc;">Message goes here</span>
+        </div>
+    </div>
+
     <div class="center-screen">
         <div class="glass-card" style="width: 400px;">
             
             <div style="text-align: center; margin-bottom: 25px;">
-                <!-- Role Badge (Admin or Worker) -->
+                <!-- Role Badge -->
                 <div id="roleBadge" class="role-badge"></div>
                 
                 <h2 id="pageTitle">Welcome</h2>
@@ -73,12 +98,10 @@
         const ADMIN_EMAIL = 'admin123@gmail.com';
         // ==========================================
 
-        // Detect Role from URL (?role=admin OR ?role=user)
         const urlParams = new URLSearchParams(window.location.search);
         const CURRENT_ROLE = urlParams.get('role') === 'admin' ? 'admin' : 'worker';
 
         const title = document.getElementById('pageTitle');
-        const desc = document.getElementById('pageDesc');
         const roleBadge = document.getElementById('roleBadge');
         const nameInput = document.getElementById('inputName');
         const submitBtn = document.getElementById('submitBtn');
@@ -86,29 +109,52 @@
         
         let isSignup = false;
 
-        // --- 1. SETUP PAGE UI BASED ON ROLE ---
+        // --- UI HELPER: SHOW TOAST ---
+        function showToast(title, msg, type = 'error') {
+            const toast = document.getElementById('loginToast');
+            const icon = document.getElementById('toastIcon');
+            const titleEl = document.getElementById('toastTitle');
+            const msgEl = document.getElementById('toastMsg');
+
+            // Reset classes
+            toast.classList.remove('toast-error', 'toast-success');
+            
+            if (type === 'error') {
+                toast.classList.add('toast-error');
+                icon.className = 'ri-error-warning-fill toast-icon';
+                icon.style.color = '#ef4444';
+            } else {
+                toast.classList.add('toast-success');
+                icon.className = 'ri-checkbox-circle-fill toast-icon';
+                icon.style.color = '#10b981';
+            }
+
+            titleEl.innerText = title;
+            msgEl.innerText = msg;
+
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 4000);
+        }
+
+        // --- 1. SETUP PAGE UI ---
         function initPage() {
             if (CURRENT_ROLE === 'admin') {
-                // ADMIN UI
                 roleBadge.innerText = "Admin Portal";
                 roleBadge.classList.add('role-admin');
                 title.innerText = "Admin Login";
-                desc.innerText = "Secure Access Only";
-                workerToggle.style.display = 'none'; // Admin cannot signup
+                workerToggle.style.display = 'none';
                 submitBtn.innerText = "Access Dashboard";
             } else {
-                // WORKER UI
                 roleBadge.innerText = "Worker Portal";
                 roleBadge.classList.add('role-worker');
                 title.innerText = "Worker Login";
-                desc.innerText = "Sign in to start survey";
-                workerToggle.style.display = 'block'; // Worker can signup
+                workerToggle.style.display = 'block';
                 submitBtn.innerText = "Login";
             }
         }
         initPage();
 
-        // --- 2. TOGGLE SIGNUP (Worker Only) ---
+        // --- 2. TOGGLE SIGNUP ---
         function toggleSignupMode() {
             isSignup = !isSignup;
             if(isSignup) {
@@ -134,39 +180,37 @@
             const password = document.getElementById('inputPassword').value;
             const name = document.getElementById('inputName').value;
 
-            // 🛑 STRICT CHECK BEFORE SERVER REQUEST
+            // 🛑 STRICT ROLE CHECK
             if (CURRENT_ROLE === 'admin') {
                 if (email !== ADMIN_EMAIL.toLowerCase()) {
-                    alert("🚫 ACCESS DENIED\n\nYe email Admin nahi hai.\nAgar aap Worker hain to 'Switch Role' click karein.");
+                    showToast("Access Denied", "This email is not authorized for Admin.", "error");
                     return;
                 }
             } else {
-                // If Worker Role
                 if (email === ADMIN_EMAIL.toLowerCase()) {
-                    alert("⚠️ WRONG PORTAL\n\nYe Admin ID hai.\nKripya 'Switch Role' karke Admin select karein.");
+                    showToast("Wrong Portal", "This is an Admin ID. Switch role to login.", "error");
                     return;
                 }
             }
 
             // Proceed
+            const originalBtnText = submitBtn.innerText;
             submitBtn.innerText = "Processing...";
             submitBtn.disabled = true;
 
             try {
                 if(isSignup && CURRENT_ROLE === 'worker') {
-                    // Sign Up (Worker)
+                    // Sign Up
                     const { data, error } = await supabase.auth.signUp({
-                        email: email,
-                        password: password,
-                        options: { data: { full_name: name } }
+                        email: email, password: password, options: { data: { full_name: name } }
                     });
                     if (error) throw error;
-                    alert("Account Created! You can now login.");
+                    
+                    showToast("Success", "Account created! You can now login.", "success");
                     toggleSignupMode();
-                    submitBtn.disabled = false;
                     submitBtn.innerText = "Login";
                 } else {
-                    // Login (Both)
+                    // Login
                     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
                     if (error) throw error;
 
@@ -178,8 +222,9 @@
                     }
                 }
             } catch (err) {
-                alert("Error: " + err.message);
-                submitBtn.innerText = isSignup ? "Sign Up" : (CURRENT_ROLE === 'admin' ? "Access Dashboard" : "Login");
+                showToast("Login Failed", err.message, "error");
+                submitBtn.innerText = originalBtnText;
+            } finally {
                 submitBtn.disabled = false;
             }
         });
