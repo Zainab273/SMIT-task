@@ -4,163 +4,170 @@
     <meta charset="UTF-8">
     <title>Admin Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Styles same as before */
+        .q-actions { display: flex; gap: 8px; }
+        .action-btn { width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: 0.2s; }
+        .btn-view { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
+        .btn-edit { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .btn-del { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-content { background: #121212; border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border-radius: 12px; padding: 20px; position: relative; }
+        .close-modal { position: absolute; top: 15px; right: 15px; font-size: 1.5rem; color: #888; cursor: pointer; }
+        .detail-row { padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #555; background: rgba(255,255,255,0.02); }
+        .pass-row { border-left-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+        .fail-row { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+        
+        #adminToast { position: fixed; top: 20px; right: 20px; background: #1e1e1e; color: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(200%); transition: transform 0.4s; z-index: 2000; display: flex; align-items: center; gap: 12px; border: 1px solid #333; }
+        #adminToast.show { transform: translateX(0); }
+        .toast-success { border-left: 4px solid #10b981; }
+        .toast-error { border-left: 4px solid #ef4444; }
+        .modal-btn-group { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
+        .delete-icon { font-size: 3rem; color: #ef4444; margin-bottom: 10px; display: block; text-align: center; }
+    </style>
 </head>
 <body>
     <div class="aurora-bg"><div class="blob blob-1"></div></div>
+    <div id="adminToast"><i id="toastIcon" class="ri-checkbox-circle-fill"></i><span id="toastMsg">Notification</span></div>
 
     <div class="container">
         <div class="admin-header">
-            <h2>Admin Dashboard</h2>
-            <button onclick="logout()" class="btn-del">Sign Out</button>
+            <h2 style="display:flex; align-items:center; gap:10px;"><i class="ri-dashboard-3-line" style="color:#a78bfa"></i> Admin Dashboard</h2>
+            <button onclick="logout()" class="glow-button btn-small" style="width:auto; background:rgba(255,255,255,0.1); border:1px solid #444;">Sign Out</button>
         </div>
 
         <div class="admin-grid">
-            <!-- Left: Add Question Form -->
             <div class="glass-card">
-                <h3>Add Question</h3>
+                <h3 id="formTitle">Add Question</h3>
                 <br>
                 <form id="addQForm">
+                    <input type="hidden" id="editId">
                     <label>Question Text</label>
                     <input type="text" id="qText" required placeholder="Enter question...">
-
                     <label>Type</label>
                     <select id="qType" class="select-dark" onchange="toggleOptions()">
                         <option value="multiple">Multiple Choice</option>
                         <option value="single">Single (True/False)</option>
                         <option value="data">Data (Info Only)</option>
                     </select>
-
                     <div id="optionsContainer">
                         <label>Options (Comma separated)</label>
-                        <input type="text" id="qOptions" placeholder="e.g. Fever, Cough, None">
-                        
+                        <input type="text" id="qOptions" placeholder="e.g. Yes, No, Maybe">
                         <label>Correct Answer</label>
-                        <input type="text" id="qCorrect" placeholder="Exact text of correct option">
+                        <input type="text" id="qCorrect" placeholder="e.g. Yes">
                     </div>
-
-                    <label>Fail Response (Message if wrong)</label>
-                    <input type="text" id="qFailMsg" placeholder="e.g. Consult a doctor">
-
-                    <button type="submit" class="glow-button btn-small">Add Question</button>
+                    <label>Fail Response</label>
+                    <input type="text" id="qFailMsg" placeholder="Message if wrong...">
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button type="submit" id="submitBtn" class="glow-button btn-small">Add Question</button>
+                        <button type="button" id="cancelBtn" onclick="resetForm()" class="glow-button btn-small" style="background:transparent; border:1px solid #555; display:none;">Cancel</button>
+                    </div>
                 </form>
             </div>
 
-            <!-- Right: Reports & Question List -->
             <div class="glass-card">
-                <div style="display:flex; gap:20px; margin-bottom:20px;">
-                    <button class="glow-button btn-small" onclick="showTab('reports')">User Reports</button>
-                    <button class="glow-button btn-small" style="background:transparent; border:1px solid white" onclick="showTab('questions')">View Questions</button>
+                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                    <button class="glow-button btn-small" onclick="showTab('reports')">Reports</button>
+                    <button class="glow-button btn-small" style="background:transparent; border:1px solid #555;" onclick="showTab('questions')">Questions</button>
                 </div>
-
-                <!-- Reports Tab -->
                 <div id="tab-reports">
-                    <h3>Survey Submissions</h3>
-                    <div class="table-wrapper">
-                        <table class="report-table">
-                            <thead>
-                                <tr>
-                                    <th>Worker</th>
-                                    <th>Result</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="reportsBody"></tbody>
-                        </table>
-                    </div>
+                    <h3>Submission History</h3>
+                    <div class="table-wrapper"><table class="report-table"><thead><tr><th>Worker</th><th>Result</th><th>Actions</th></tr></thead><tbody id="reportsBody"></tbody></table></div>
                 </div>
-
-                <!-- Questions List Tab -->
                 <div id="tab-questions" style="display:none;">
-                    <h3>Active Questions</h3>
-                    <div id="questionsList" style="margin-top:20px;"></div>
+                    <h3>All Questions</h3>
+                    <div id="questionsList" style="margin-top:15px; max-height:500px; overflow-y:auto;"></div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Modals -->
+    <div id="viewModal" class="modal-overlay"><div class="modal-content"><i class="ri-close-line close-modal" onclick="closeViewModal()"></i><h3>Details</h3><p id="modalInfo" style="color:#aaa; font-size:0.9rem; margin-bottom:15px;"></p><div id="modalBody"></div></div></div>
+    <div id="deleteModal" class="modal-overlay"><div class="modal-content" style="max-width:400px; text-align:center;"><i class="ri-delete-bin-2-line delete-icon"></i><h3>Are you sure?</h3><p id="delModalText" style="color:#aaa; margin-top:5px;">Cannot be undone.</p><div class="modal-btn-group"><button onclick="closeDeleteModal()" class="glow-button btn-small" style="background:transparent; border:1px solid #555; width:auto;">Cancel</button><button id="confirmDeleteBtn" class="glow-button btn-small" style="background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5; width:auto;">Delete</button></div></div></div>
 
     <script>
         const SUPABASE_URL = 'https://sadprddxjtqscsourwub.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZHByZGR4anRxc2Nzb3Vyd3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYyNTgsImV4cCI6MjA4MDAwMjI1OH0.-WHvQpXjwPTxaB_tbRDoBNcz80cWeORAnCl3QLDzuW0';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // --- Logic ---
-        function toggleOptions() {
-            const type = document.getElementById('qType').value;
-            const container = document.getElementById('optionsContainer');
-            if(type === 'data') container.style.display = 'none';
-            else container.style.display = 'block';
-        }
+        // ==================================================
+        // 🔴 YAHA BHI WAHI ADMIN EMAIL LIKHEIN JO LOGIN.HTML MEIN THI
+        const ADMIN_EMAIL = 'admin123@gmail.com';
+        // ==================================================
 
-        async function loadData() {
-            // Load Submissions
-            const { data: subs } = await supabase.from('submissions').select('*').order('created_at', {ascending: false});
-            const tbody = document.getElementById('reportsBody');
-            tbody.innerHTML = '';
-            if(subs) {
-                subs.forEach(sub => {
-                    const row = `<tr>
-                        <td>${sub.user_name}<br><small>${sub.user_email}</small></td>
-                        <td class="${sub.status === 'Pass' ? 'status-pass' : 'status-fail'}">${sub.status}</td>
-                        <td>${new Date(sub.created_at).toLocaleDateString()}</td>
-                    </tr>`;
-                    tbody.innerHTML += row;
-                });
-            }
+        let globalQs = [], globalSubs = [];
 
-            // Load Questions
-            const { data: qs } = await supabase.from('questions').select('*');
-            const qList = document.getElementById('questionsList');
-            qList.innerHTML = '';
-            if(qs) {
-                qs.forEach(q => {
-                    qList.innerHTML += `<div class="question-block">
-                        <strong>${q.text}</strong> <span class="q-type-badge">${q.type}</span>
-                        <br><small style="color:var(--text-muted)">Correct: ${q.correct_answer || 'N/A'}</small>
-                    </div>`;
-                });
-            }
-        }
-
-        document.getElementById('addQForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = document.getElementById('qText').value;
-            const type = document.getElementById('qType').value;
-            const failMsg = document.getElementById('qFailMsg').value;
-            let options = null;
-            let correct = null;
-
-            if(type !== 'data') {
-                if(type === 'single') options = ['True', 'False'];
-                else options = document.getElementById('qOptions').value.split(',').map(s=>s.trim());
-                correct = document.getElementById('qCorrect').value;
-            }
-
-            const { error } = await supabase.from('questions').insert({
-                text, type, options, correct_answer: correct, fail_message: failMsg
-            });
-
-            if(error) alert(error.message);
-            else {
-                alert("Question Added!");
-                e.target.reset();
+        // SECURITY CHECK
+        async function checkAdminAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || session.user.email.toLowerCase().trim() !== ADMIN_EMAIL.toLowerCase().trim()) {
+                alert("Access Denied: You are not an Admin.");
+                window.location.href = 'index.html';
+            } else {
                 loadData();
             }
-        });
+        }
+        checkAdminAuth();
 
-        function showTab(tab) {
-            document.getElementById('tab-reports').style.display = tab === 'reports' ? 'block' : 'none';
-            document.getElementById('tab-questions').style.display = tab === 'questions' ? 'block' : 'none';
+        // HELPERS
+        function showToast(msg, type='success') {
+            const t = document.getElementById('adminToast'), i = document.getElementById('toastIcon');
+            t.className = type==='success'?'toast-success':'toast-error';
+            i.className = type==='success'?'ri-checkbox-circle-fill':'ri-error-warning-fill';
+            i.style.color = type==='success'?'#10b981':'#ef4444';
+            document.getElementById('toastMsg').innerText = msg;
+            t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+        }
+        function toggleOptions() { document.getElementById('optionsContainer').style.display = document.getElementById('qType').value === 'data' ? 'none' : 'block'; }
+
+        // DATA LOADING
+        async function loadData() {
+            const { data: subs } = await supabase.from('submissions').select('*').order('created_at', {ascending: false});
+            globalSubs = subs || [];
+            const tbody = document.getElementById('reportsBody'); tbody.innerHTML = '';
+            if(subs) subs.forEach(s => tbody.innerHTML += `<tr><td>${s.user_name}<br><small style="color:#888">${s.user_email}</small></td><td class="${s.status==='Pass'?'status-pass':'status-fail'}">${s.status}</td><td class="q-actions"><button onclick="viewReport(${s.id})" class="action-btn btn-view"><i class="ri-eye-line"></i></button><button onclick="requestDeleteReport(${s.id})" class="action-btn btn-del"><i class="ri-delete-bin-line"></i></button></td></tr>`);
+
+            const { data: qs } = await supabase.from('questions').select('*').order('id', {ascending: true});
+            globalQs = qs || [];
+            const qList = document.getElementById('questionsList'); qList.innerHTML = '';
+            if(qs) qs.forEach(q => qList.innerHTML += `<div class="question-block" style="display:flex; justify-content:space-between; align-items:center;"><div><strong>${q.text}</strong> <span class="q-type-badge">${q.type}</span><br><small style="color:#777">Correct: ${q.correct_answer || 'N/A'}</small></div><div class="q-actions"><button onclick="editQuestion(${q.id})" class="action-btn btn-edit"><i class="ri-pencil-fill"></i></button><button onclick="requestDeleteQuestion(${q.id})" class="action-btn btn-del"><i class="ri-delete-bin-fill"></i></button></div></div>`);
         }
 
-        function logout() {
-            supabase.auth.signOut();
-            window.location.href = 'index.html';
+        // VIEW & DELETE
+        function viewReport(id) {
+            const sub = globalSubs.find(s=>s.id===id); if(!sub) return;
+            document.getElementById('modalInfo').innerText = `User: ${sub.user_name} | Score: ${sub.score}`;
+            const body = document.getElementById('modalBody'); body.innerHTML = '';
+            if(sub.details) sub.details.forEach(d => {
+                const isCorrect = d.is_correct === true, rowClass = isCorrect?'pass-row':'fail-row', icon=isCorrect?'<i class="ri-check-line" style="color:#10b981"></i>':'<i class="ri-close-line" style="color:#ef4444"></i>', helper=!isCorrect?`<div style="font-size:0.8rem; color:#f87171; margin-top:4px;">Expected: <b>${d.correct_ans}</b></div>`:'';
+                body.innerHTML += `<div class="detail-row ${rowClass}"><div style="color:#ccc; font-size:0.9rem; margin-bottom:5px;">${d.question}</div><div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; color:white;">${d.user_ans}</span><span>${icon}</span></div>${helper}</div>`;
+            });
+            document.getElementById('viewModal').style.display = 'flex';
         }
-
-        // Init
-        loadData();
+        function requestDeleteReport(id) {
+            document.getElementById('delModalText').innerText = "Delete submission?";
+            document.getElementById('deleteModal').style.display = 'flex';
+            document.getElementById('confirmDeleteBtn').onclick = async()=>{const{error}=await supabase.from('submissions').delete().eq('id',id);if(error)showToast(error.message,'error');else{showToast("Deleted");loadData();}closeDeleteModal();};
+        }
+        function requestDeleteQuestion(id) {
+            document.getElementById('delModalText').innerText = "Delete question?";
+            document.getElementById('deleteModal').style.display = 'flex';
+            document.getElementById('confirmDeleteBtn').onclick = async()=>{const{error}=await supabase.from('questions').delete().eq('id',id);if(error)showToast(error.message,'error');else{showToast("Deleted");loadData();}closeDeleteModal();};
+        }
+        function editQuestion(id) {
+            const q=globalQs.find(i=>i.id===id);if(!q)return;document.getElementById('editId').value=id;document.getElementById('qText').value=q.text;document.getElementById('qType').value=q.type;document.getElementById('qFailMsg').value=q.fail_message||'';document.getElementById('qCorrect').value=q.correct_answer||'';document.getElementById('qOptions').value=Array.isArray(q.options)?q.options.join(', '):(typeof q.options==='string'?q.options:'');toggleOptions();document.getElementById('formTitle').innerText="Edit Question";document.getElementById('submitBtn').innerText="Update";document.getElementById('cancelBtn').style.display="inline-block";
+        }
+        function resetForm() { document.getElementById('addQForm').reset(); document.getElementById('editId').value=''; document.getElementById('formTitle').innerText="Add Question"; document.getElementById('submitBtn').innerText="Add Question"; document.getElementById('cancelBtn').style.display="none"; toggleOptions(); }
+        document.getElementById('addQForm').addEventListener('submit', async(e)=>{e.preventDefault();const id=document.getElementById('editId').value,text=document.getElementById('qText').value,type=document.getElementById('qType').value,failMsg=document.getElementById('qFailMsg').value,correct=document.getElementById('qCorrect').value;let options=null;if(type!=='data')options=(type==='single')?['True','False']:document.getElementById('qOptions').value.split(',').map(s=>s.trim());const payload={text,type,options,correct_answer:correct,fail_message:failMsg};let err;if(id)({error:err}=await supabase.from('questions').update(payload).eq('id',id));else({error:err}=await supabase.from('questions').insert(payload));if(err)showToast(err.message,'error');else{showToast(id?"Updated":"Added");resetForm();loadData();}});
+        function showTab(t){document.getElementById('tab-reports').style.display=t==='reports'?'block':'none';document.getElementById('tab-questions').style.display=t==='questions'?'block':'none';}
+        function closeViewModal(){document.getElementById('viewModal').style.display='none';}function closeDeleteModal(){document.getElementById('deleteModal').style.display='none';}
+        function logout(){supabase.auth.signOut();window.location.href='index.html';}
+        window.onclick=(e)=>{if(e.target==document.getElementById('viewModal'))closeViewModal();if(e.target==document.getElementById('deleteModal'))closeDeleteModal();}
     </script>
 </body>
 </html>

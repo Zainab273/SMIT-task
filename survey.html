@@ -3,219 +3,390 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Take Survey | Covid Protocol</title>
+    <title>Assessment | CovidSafe</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* --- Styles for Step UI --- */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%; height: 6px; background: rgba(255,255,255,0.1);
+            border-radius: 10px; margin-bottom: 30px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, #8b5cf6, #ec4899);
+            width: 0%; transition: width 0.4s ease;
+        }
+
+        /* Option Styling */
+        .option-label { display: block; margin-bottom: 15px; cursor: pointer; transition: 0.2s; }
+        .option-tile {
+            padding: 15px 20px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            display: flex; align-items: center; font-size: 1.1rem; color: #ddd;
+        }
+        .option-label input:checked + .option-tile {
+            background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6;
+            color: white; box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+        }
+        .option-label:hover .option-tile { background: rgba(255,255,255,0.1); }
+
+        /* Intro List */
+        .rules-list { list-style: none; text-align: left; margin: 20px 0; padding: 0; }
+        .rules-list li {
+            margin-bottom: 15px; display: flex; align-items: center; gap: 15px;
+            background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px;
+        }
+        .rules-icon {
+            background: rgba(139, 92, 246, 0.2); color: #a78bfa;
+            width: 35px; height: 35px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+        .hidden { display: none !important; }
+
+        /* --- CUSTOM ALERT UI (Toast) --- */
+        #customToast {
+            position: fixed; top: 20px; right: 20px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white; padding: 15px 25px; border-radius: 12px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: translateX(200%); transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 2000; display: flex; align-items: center; gap: 10px;
+        }
+        #customToast.show { transform: translateX(0); }
+
+        /* --- CUSTOM CONFIRM MODAL --- */
+        .confirm-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            z-index: 3000; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .confirm-box {
+            background: #1a1a1a; width: 90%; max-width: 400px;
+            padding: 30px; border-radius: 20px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            transform: scale(0.9); transition: transform 0.2s;
+        }
+        .confirm-overlay.active .confirm-box { transform: scale(1); }
+    </style>
 </head>
 <body>
-    <!-- Animated Background -->
     <div class="aurora-bg">
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
 
-    <!-- Sticky Header with User Info & Timer -->
-    <div class="sticky-header">
-        <div class="timer-box">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <i class="ri-user-heart-line" style="color:var(--secondary-glow); font-size:1.2rem;"></i>
-                <div>
-                    <span id="userNameDisplay" style="font-weight:600; display:block; line-height:1;">Worker</span>
-                    <small style="color:var(--text-muted); font-size:0.8rem;">Covid Assessment</small>
-                </div>
-            </div>
-            <div style="text-align:right;">
-                <span style="font-size:0.8rem; color:var(--text-muted); display:block;">Time Remaining</span>
-                <span id="timerDisplay" class="time-left">10</span>
+    <!-- CUSTOM TOAST (Notification) -->
+    <div id="customToast">
+        <i class="ri-error-warning-fill" style="font-size: 1.2rem;"></i>
+        <span id="toastMsg">Alert Message</span>
+    </div>
+
+    <!-- CUSTOM CONFIRM MODAL -->
+    <div id="confirmModal" class="confirm-overlay">
+        <div class="confirm-box">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🤔</div>
+            <h3 style="color: white; margin-bottom: 10px;">Are you sure?</h3>
+            <p style="color: #aaa; margin-bottom: 25px;">Do you want to submit your assessment now?</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button onclick="closeConfirm()" class="glow-button btn-small" style="background: transparent; border: 1px solid #555; width: auto;">Cancel</button>
+                <button id="confirmYesBtn" class="glow-button btn-small" style="width: auto;">Yes, Submit</button>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="container" style="max-width: 800px; padding-top: 10px;">
-        
-        <form id="surveyForm">
-            <!-- Questions inject here -->
-            <div id="questionsWrapper"></div>
-
-            <div style="margin-top: 40px; text-align: center; padding-bottom: 50px;">
-                <button type="submit" class="glow-button" style="max-width: 300px; margin: 0 auto;">
-                    <span>Submit Assessment</span>
-                    <i class="ri-send-plane-fill"></i>
-                </button>
-            </div>
-        </form>
-
+    <!-- Header -->
+    <div style="position: sticky; top:0; z-index:50; background:rgba(3,3,5,0.95); padding:15px 5%; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+        <div style="color:white; font-weight:bold; display:flex; align-items:center; gap:10px;">
+            <i class="ri-user-smile-line" style="color:#8b5cf6; font-size:1.2rem;"></i>
+            <span id="userName">Welcome</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <span id="timerDisplay" style="color:#ec4899; font-family:monospace; font-size:1.2rem; font-weight:bold;">10:00</span>
+            <button onclick="logout()" class="btn-del" style="border:1px solid #444; padding:5px 12px; background:transparent;">Sign Out</button>
+        </div>
     </div>
 
-    <!-- Result Modal / Fullscreen Overlay -->
-    <div id="resultOverlay" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(3,3,5,0.95); backdrop-filter:blur(20px); align-items:center; justify-content:center;">
-        <div class="glass-card" style="text-align:center; max-width:400px; animation: fadeInUp 0.5s ease;">
-            <div id="resIcon" style="font-size:4rem; margin-bottom:10px;"></div>
-            <h1 id="resStatus" style="font-size:3rem; margin-bottom:5px; font-weight:700;"></h1>
-            <p id="resScore" style="color:var(--text-muted); font-size:1.2rem; margin-bottom:30px;"></p>
-            <button onclick="location.href='index.html'" class="glow-button">Back to Home</button>
+    <div class="center-screen" style="height: auto; min-height: 80vh; padding: 20px;">
+        
+        <!-- SECTION 1: INTRO -->
+        <div id="introCard" class="glass-card fade-in" style="width: 100%; max-width: 500px; text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 10px;">📋</div>
+            <h1 style="margin-bottom: 10px;">Worker Assessment</h1>
+            <p style="color:var(--text-muted); margin-bottom: 30px;">Please read the instructions carefully before starting.</p>
+            
+            <ul class="rules-list">
+                <li><div class="rules-icon"><i class="ri-time-line"></i></div><div><strong>10 Minutes</strong><br><small style="color:#888">Time limit</small></div></li>
+                <li><div class="rules-icon"><i class="ri-checkbox-circle-line"></i></div><div><strong>Step-by-Step</strong><br><small style="color:#888">One question at a time</small></div></li>
+                <li><div class="rules-icon"><i class="ri-shield-check-line"></i></div><div><strong>50% to Pass</strong><br><small style="color:#888">Answer carefully</small></div></li>
+            </ul>
+
+            <button onclick="startAssessment()" class="glow-button">Start Assessment <i class="ri-arrow-right-line"></i></button>
+        </div>
+
+        <!-- SECTION 2: QUIZ -->
+        <div id="quizCard" class="glass-card hidden" style="width: 100%; max-width: 600px; padding: 40px; position: relative;">
+            <div class="progress-container"><div id="progressBar" class="progress-fill"></div></div>
+
+            <div id="quizContainer">
+                <h3 id="stepCounter" style="color:var(--text-muted); font-size:0.9rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Question 1</h3>
+                
+                <div id="questionContent" class="fade-in" style="min-height: 300px; display:flex; flex-direction:column; justify-content:center;">
+                    <div style="text-align:center;"><div class="spinner"></div><p>Loading...</p></div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button id="prevBtn" onclick="prevQuestion()" class="glow-button btn-small" style="background:transparent; border:1px solid #555; width:auto; visibility:hidden;">
+                        <i class="ri-arrow-left-line"></i> Back
+                    </button>
+                    <button id="nextBtn" onclick="nextQuestion()" class="glow-button btn-small" style="width:auto; padding-left:30px; padding-right:30px;">
+                        Next <i class="ri-arrow-right-line"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- 1. CONFIG ---
         const SUPABASE_URL = 'https://sadprddxjtqscsourwub.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZHByZGR4anRxc2Nzb3Vyd3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYyNTgsImV4cCI6MjA4MDAwMjI1OH0.-WHvQpXjwPTxaB_tbRDoBNcz80cWeORAnCl3QLDzuW0';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let questionsData = [];
-        let timeLeft = 600; // 10 minutes
+        let userAnswers = {};
+        let currentStep = 0;
+        let timeLeft = 600; 
+        let userEmail = '';
+        let userName = '';
+        let timerInterval;
 
-        // --- 2. AUTH CHECK ---
-        const user = JSON.parse(localStorage.getItem('surveyUser'));
-        if(!user) window.location.href = 'index.html';
-        document.getElementById('userNameDisplay').innerText = user.name;
+        // --- UI HELPERS (New) ---
+        function showToast(msg) {
+            const toast = document.getElementById('customToast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
 
-        // --- 3. TIMER LOGIC ---
-        const timerInterval = setInterval(() => {
-            timeLeft--;
-            const m = Math.floor(timeLeft / 60);
-            const s = timeLeft % 60;
-            const text = `${m}:${s < 10 ? '0'+s : s}`;
+        function showConfirm(callback) {
+            const modal = document.getElementById('confirmModal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
             
-            const timerEl = document.getElementById('timerDisplay');
-            timerEl.innerText = text;
-            
-            // Red color warning on last minute
-            if(timeLeft < 60) timerEl.style.color = 'var(--danger)';
+            // Setup Yes button
+            const yesBtn = document.getElementById('confirmYesBtn');
+            yesBtn.onclick = () => {
+                closeConfirm();
+                callback();
+            };
+        }
 
-            if(timeLeft <= 0) {
-                clearInterval(timerInterval);
-                submitSurvey();
-            }
-        }, 1000);
+        function closeConfirm() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.style.display = 'none', 200);
+        }
 
-        // --- 4. LOAD SURVEY ---
+        // --- AUTH & INIT ---
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if(!session) { window.location.href = 'index.html'; return; }
+            userEmail = session.user.email;
+            userName = session.user.user_metadata.full_name || 'Worker';
+            document.getElementById('userName').innerText = userName;
+        }
+        checkAuth();
+
+        function logout() {
+            supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // --- START ---
+        function startAssessment() {
+            document.getElementById('introCard').classList.add('hidden');
+            document.getElementById('quizCard').classList.remove('hidden');
+            document.getElementById('quizCard').classList.add('fade-in');
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                const m = Math.floor(timeLeft / 60);
+                const s = timeLeft % 60;
+                document.getElementById('timerDisplay').innerText = `${m}:${s < 10 ? '0'+s : s}`;
+                if(timeLeft <= 0) { clearInterval(timerInterval); submitSurvey(); }
+            }, 1000);
+
+            loadSurvey();
+        }
+
         async function loadSurvey() {
             const { data } = await supabase.from('questions').select('*').order('id', {ascending: true});
             questionsData = data || [];
-            const wrapper = document.getElementById('questionsWrapper');
-
             if(questionsData.length === 0) {
-                wrapper.innerHTML = `<div class="q-card" style="text-align:center;"><h3>No questions found.</h3></div>`;
+                document.getElementById('questionContent').innerHTML = "<h3 style='text-align:center'>No questions found.</h3>";
+                document.getElementById('nextBtn').style.display = 'none';
                 return;
             }
-
-            questionsData.forEach((q, index) => {
-                let optionsHtml = '';
-
-                // Generate Options Logic
-                if(q.type === 'data') {
-                    optionsHtml = `<div style="padding:15px; background:rgba(59, 130, 246, 0.1); border-left:4px solid #3b82f6; border-radius:4px; color:#93c5fd;">
-                        <i class="ri-information-line"></i> This is an informational slide. No answer required.
-                    </div>`;
-                } else if (q.options) {
-                    optionsHtml = `<div class="options-grid">`;
-                    q.options.forEach((opt, i) => {
-                        // Unique ID for label connection
-                        const uniqueId = `q${q.id}_opt${i}`;
-                        
-                        optionsHtml += `
-                            <label class="option-label" for="${uniqueId}">
-                                <input type="radio" id="${uniqueId}" name="q_${q.id}" value="${opt}">
-                                <div class="option-tile">
-                                    <span>${opt}</span>
-                                </div>
-                            </label>
-                        `;
-                    });
-                    optionsHtml += `</div>`;
-                }
-
-                // Append Question Card
-                wrapper.innerHTML += `
-                    <div class="q-card">
-                        <span class="q-number">Question ${index + 1}</span>
-                        <div class="q-text">${q.text}</div>
-                        ${optionsHtml}
-                        <input type="text" class="comment-box" name="comment_${q.id}" placeholder="Type any comments here...">
-                    </div>
-                `;
-            });
+            showQuestion(0);
         }
 
-        // --- 5. SUBMIT LOGIC ---
-        document.getElementById('surveyForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            if(confirm("Are you sure you want to submit?")) {
-                submitSurvey();
+        function showQuestion(index) {
+            currentStep = index;
+            const q = questionsData[index];
+            const contentDiv = document.getElementById('questionContent');
+            const counter = document.getElementById('stepCounter');
+            const progressBar = document.getElementById('progressBar');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            counter.innerText = `Question ${index + 1} of ${questionsData.length}`;
+            const progressPercent = ((index + 1) / questionsData.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+
+            prevBtn.style.visibility = index === 0 ? 'hidden' : 'visible';
+            if (index === questionsData.length - 1) {
+                nextBtn.innerHTML = 'Submit <i class="ri-check-double-line"></i>';
+                nextBtn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+            } else {
+                nextBtn.innerHTML = 'Next <i class="ri-arrow-right-line"></i>';
+                nextBtn.style.background = ""; 
             }
-        });
+
+            let html = `<h2 style="font-size:1.6rem; margin-bottom:30px; line-height:1.4;">${q.text}</h2>`;
+
+            if(q.type === 'data') {
+                html += `<div style="padding:20px; background:rgba(59,130,246,0.1); border-left:4px solid #3b82f6; border-radius:8px; color:#bfdbfe; font-size:1.1rem;">
+                            <i class="ri-information-line"></i> This is an information slide. Read and click Next.
+                         </div>`;
+            } 
+            else if (q.options) {
+                const opts = Array.isArray(q.options) ? q.options : q.options.split(',');
+                html += `<div class="options-container">`;
+                opts.forEach(opt => {
+                    const cleanOpt = typeof opt === 'string' ? opt.trim() : opt;
+                    const isChecked = userAnswers[q.id] === cleanOpt ? 'checked' : '';
+                    html += `
+                        <label class="option-label">
+                            <input type="radio" name="current_q" value="${cleanOpt}" ${isChecked} style="display:none;">
+                            <div class="option-tile">
+                                <i class="ri-checkbox-blank-circle-line" style="margin-right:15px; font-size:1.2rem; color:var(--text-muted)"></i>
+                                ${cleanOpt}
+                            </div>
+                        </label>`;
+                });
+                html += `</div>`;
+            }
+            
+            contentDiv.style.animation = 'none';
+            contentDiv.offsetHeight; 
+            contentDiv.style.animation = 'fadeIn 0.4s ease-in-out';
+            contentDiv.innerHTML = html;
+        }
+
+        function nextQuestion() {
+            const q = questionsData[currentStep];
+
+            if(q.type !== 'data') {
+                const selected = document.querySelector('input[name="current_q"]:checked');
+                if(!selected) {
+                    // Shake Effect
+                    const card = document.getElementById('quizCard');
+                    card.style.transform = "translateX(5px)";
+                    setTimeout(() => card.style.transform = "translateX(0)", 100);
+                    setTimeout(() => card.style.transform = "translateX(-5px)", 200);
+                    setTimeout(() => card.style.transform = "translateX(0)", 300);
+                    
+                    // NEW: Show Toast instead of Alert
+                    showToast("Please select an option to proceed.");
+                    return;
+                }
+                userAnswers[q.id] = selected.value;
+            }
+
+            if(currentStep < questionsData.length - 1) {
+                showQuestion(currentStep + 1);
+            } else {
+                // NEW: Show Custom Modal instead of confirm()
+                showConfirm(() => {
+                    submitSurvey();
+                });
+            }
+        }
+
+        function prevQuestion() {
+            if(currentStep > 0) showQuestion(currentStep - 1);
+        }
 
         async function submitSurvey() {
             clearInterval(timerInterval);
-            
-            // Show loading state
-            const btn = document.querySelector('button[type="submit"]');
-            btn.innerHTML = 'Calculating...';
-            btn.disabled = true;
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
+            nextBtn.disabled = true;
 
-            const formData = new FormData(document.getElementById('surveyForm'));
             let score = 0;
             let totalScorable = 0;
             let details = [];
 
             questionsData.forEach(q => {
                 if(q.type === 'data') return;
-                
                 totalScorable++;
-                const answer = formData.get(`q_${q.id}`); // Returns value or null
-                const comment = formData.get(`comment_${q.id}`);
-                
-                const isCorrect = (answer === q.correct_answer);
-                if(isCorrect) score++;
+                const userAns = userAnswers[q.id];
+                const dbCorrect = q.correct_answer;
+                let isCorrect = false;
 
+                if(userAns && dbCorrect) {
+                    if(String(userAns).trim().toLowerCase() === String(dbCorrect).trim().toLowerCase()) {
+                        isCorrect = true;
+                        score++;
+                    }
+                }
                 details.push({
                     question: q.text,
-                    user_ans: answer || "Skipped",
-                    correct: isCorrect,
-                    comment: comment
+                    user_ans: userAns || "Skipped",
+                    correct_ans: dbCorrect || "N/A",
+                    is_correct: isCorrect
                 });
             });
 
-            // Pass/Fail Logic (50%)
             const status = (score >= totalScorable / 2) ? "Pass" : "Fail";
 
-            // Save to DB
-            await supabase.from('submissions').insert({
-                user_name: user.name,
-                user_email: user.email,
+            const { error } = await supabase.from('submissions').insert({
+                user_name: userName,
+                user_email: userEmail,
                 score: score,
                 total_questions: totalScorable,
                 status: status,
                 details: details
             });
 
-            // Show Result Screen
-            const overlay = document.getElementById('resultOverlay');
-            const resStatus = document.getElementById('resStatus');
-            const resIcon = document.getElementById('resIcon');
-            
-            overlay.style.display = 'flex';
-            
-            if(status === 'Pass') {
-                resStatus.innerText = 'PASSED';
-                resStatus.style.color = 'var(--success)';
-                resIcon.innerHTML = '<i class="ri-checkbox-circle-fill" style="color:var(--success)"></i>';
+            if(error) {
+                showToast("Error: " + error.message);
+                nextBtn.disabled = false;
+                nextBtn.innerText = "Retry";
             } else {
-                resStatus.innerText = 'FAILED';
-                resStatus.style.color = 'var(--danger)';
-                resIcon.innerHTML = '<i class="ri-close-circle-fill" style="color:var(--danger)"></i>';
+                document.getElementById('quizCard').innerHTML = `
+                    <div style="text-align:center; padding:30px;">
+                        <div style="font-size:4rem; margin-bottom:20px;">
+                            ${status === 'Pass' ? '🎉' : '⚠️'}
+                        </div>
+                        <h2 style="font-size:2rem; margin-bottom:10px;">Assessment Complete</h2>
+                        <h1 style="color:${status==='Pass'?'#10b981':'#ef4444'}; font-size:3rem; margin-bottom:20px;">${status}</h1>
+                        <p style="color:#aaa; font-size:1.2rem;">You scored ${score} out of ${totalScorable}</p>
+                        <button onclick="logout()" class="glow-button" style="margin-top:30px;">Sign Out</button>
+                    </div>
+                `;
             }
-            
-            document.getElementById('resScore').innerText = `You answered ${score} out of ${totalScorable} correctly.`;
         }
-
-        // Init
-        loadSurvey();
     </script>
 </body>
 </html>

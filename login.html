@@ -3,10 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Covid Survey</title>
+    <title>Login | CovidSafe</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .link-text { color: #8b5cf6; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
+        
+        /* Role Badge Style */
+        .role-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        .role-admin { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .role-worker { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    </style>
 </head>
 <body>
     <div class="aurora-bg">
@@ -16,7 +34,11 @@
 
     <div class="center-screen">
         <div class="glass-card" style="width: 400px;">
-            <div style="text-align: center; margin-bottom: 30px;">
+            
+            <div style="text-align: center; margin-bottom: 25px;">
+                <!-- Role Badge (Admin or Worker) -->
+                <div id="roleBadge" class="role-badge"></div>
+                
                 <h2 id="pageTitle">Welcome</h2>
                 <p id="pageDesc" style="color: var(--text-muted);">Please sign in</p>
             </div>
@@ -25,13 +47,18 @@
             <form id="authForm">
                 <input type="text" id="inputName" placeholder="Full Name" style="display:none;">
                 <input type="email" id="inputEmail" placeholder="Email Address" required>
-                <input type="password" id="inputPassword" placeholder="Password" style="display:none;">
+                <input type="password" id="inputPassword" placeholder="Password" required>
                 
-                <button type="submit" class="glow-button">Continue</button>
+                <button type="submit" id="submitBtn" class="glow-button">Login</button>
             </form>
             
+            <!-- Create Account Toggle (Hidden for Admin) -->
+            <div id="workerToggle" style="text-align: center; margin-top: 15px; display:none;">
+                <p style="color:#aaa;">New here? <span class="link-text" onclick="toggleSignupMode()">Create Account</span></p>
+            </div>
+
             <p style="text-align:center; margin-top:20px; font-size:0.9rem;">
-                <a href="index.html" style="color:var(--text-muted); text-decoration:none;">&larr; Back to Selection</a>
+                <a href="index.html" style="color:var(--text-muted); text-decoration:none;">&larr; Switch Role</a>
             </p>
         </div>
     </div>
@@ -41,41 +68,119 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhZHByZGR4anRxc2Nzb3Vyd3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYyNTgsImV4cCI6MjA4MDAwMjI1OH0.-WHvQpXjwPTxaB_tbRDoBNcz80cWeORAnCl3QLDzuW0';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Check Role from URL
+        // ==========================================
+        // 🔒 ADMIN EMAIL CONFIG
+        const ADMIN_EMAIL = 'admin123@gmail.com';
+        // ==========================================
+
+        // Detect Role from URL (?role=admin OR ?role=user)
         const urlParams = new URLSearchParams(window.location.search);
-        const role = urlParams.get('role') || 'user';
+        const CURRENT_ROLE = urlParams.get('role') === 'admin' ? 'admin' : 'worker';
 
         const title = document.getElementById('pageTitle');
         const desc = document.getElementById('pageDesc');
+        const roleBadge = document.getElementById('roleBadge');
         const nameInput = document.getElementById('inputName');
-        const passInput = document.getElementById('inputPassword');
+        const submitBtn = document.getElementById('submitBtn');
+        const workerToggle = document.getElementById('workerToggle');
+        
+        let isSignup = false;
 
-        if (role === 'admin') {
-            title.innerText = "Admin Login";
-            desc.innerText = "Enter credentials to manage surveys";
-            passInput.style.display = 'block';
-            passInput.required = true;
-        } else {
-            title.innerText = "Worker Start";
-            desc.innerText = "Enter details to start the survey";
-            nameInput.style.display = 'block';
-            nameInput.required = true;
+        // --- 1. SETUP PAGE UI BASED ON ROLE ---
+        function initPage() {
+            if (CURRENT_ROLE === 'admin') {
+                // ADMIN UI
+                roleBadge.innerText = "Admin Portal";
+                roleBadge.classList.add('role-admin');
+                title.innerText = "Admin Login";
+                desc.innerText = "Secure Access Only";
+                workerToggle.style.display = 'none'; // Admin cannot signup
+                submitBtn.innerText = "Access Dashboard";
+            } else {
+                // WORKER UI
+                roleBadge.innerText = "Worker Portal";
+                roleBadge.classList.add('role-worker');
+                title.innerText = "Worker Login";
+                desc.innerText = "Sign in to start survey";
+                workerToggle.style.display = 'block'; // Worker can signup
+                submitBtn.innerText = "Login";
+            }
+        }
+        initPage();
+
+        // --- 2. TOGGLE SIGNUP (Worker Only) ---
+        function toggleSignupMode() {
+            isSignup = !isSignup;
+            if(isSignup) {
+                title.innerText = "Create Account";
+                submitBtn.innerText = "Sign Up";
+                nameInput.style.display = "block";
+                nameInput.required = true;
+                workerToggle.innerHTML = `<p style="color:#aaa;">Have an account? <span class="link-text" onclick="toggleSignupMode()">Login</span></p>`;
+            } else {
+                title.innerText = "Worker Login";
+                submitBtn.innerText = "Login";
+                nameInput.style.display = "none";
+                nameInput.required = false;
+                workerToggle.innerHTML = `<p style="color:#aaa;">New here? <span class="link-text" onclick="toggleSignupMode()">Create Account</span></p>`;
+            }
         }
 
+        // --- 3. SUBMIT HANDLER ---
         document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('inputEmail').value;
             
-            if (role === 'admin') {
-                const password = passInput.value;
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) alert("Login Failed: " + error.message);
-                else window.location.href = 'admin.html';
+            const email = document.getElementById('inputEmail').value.trim().toLowerCase();
+            const password = document.getElementById('inputPassword').value;
+            const name = document.getElementById('inputName').value;
+
+            // 🛑 STRICT CHECK BEFORE SERVER REQUEST
+            if (CURRENT_ROLE === 'admin') {
+                if (email !== ADMIN_EMAIL.toLowerCase()) {
+                    alert("🚫 ACCESS DENIED\n\nYe email Admin nahi hai.\nAgar aap Worker hain to 'Switch Role' click karein.");
+                    return;
+                }
             } else {
-                // User Flow: Just save details and go to survey
-                const name = nameInput.value;
-                localStorage.setItem('surveyUser', JSON.stringify({ name, email }));
-                window.location.href = 'survey.html';
+                // If Worker Role
+                if (email === ADMIN_EMAIL.toLowerCase()) {
+                    alert("⚠️ WRONG PORTAL\n\nYe Admin ID hai.\nKripya 'Switch Role' karke Admin select karein.");
+                    return;
+                }
+            }
+
+            // Proceed
+            submitBtn.innerText = "Processing...";
+            submitBtn.disabled = true;
+
+            try {
+                if(isSignup && CURRENT_ROLE === 'worker') {
+                    // Sign Up (Worker)
+                    const { data, error } = await supabase.auth.signUp({
+                        email: email,
+                        password: password,
+                        options: { data: { full_name: name } }
+                    });
+                    if (error) throw error;
+                    alert("Account Created! You can now login.");
+                    toggleSignupMode();
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Login";
+                } else {
+                    // Login (Both)
+                    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+
+                    // Final Redirect
+                    if (CURRENT_ROLE === 'admin') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        window.location.href = 'survey.html';
+                    }
+                }
+            } catch (err) {
+                alert("Error: " + err.message);
+                submitBtn.innerText = isSignup ? "Sign Up" : (CURRENT_ROLE === 'admin' ? "Access Dashboard" : "Login");
+                submitBtn.disabled = false;
             }
         });
     </script>
